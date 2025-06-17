@@ -1,0 +1,75 @@
+name: Publish to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to publish to'
+        required: true
+        default: 'testpypi'
+        type: choice
+        options:
+          - testpypi
+          - pypi
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: 
+      name: ${{ github.event_name == 'release' && 'pypi' || github.event.inputs.environment }}
+      url: ${{ github.event_name == 'release' && 'https://pypi.org/p/context-file-manager' || 'https://test.pypi.org/p/context-file-manager' }}
+    permissions:
+      id-token: write  # IMPORTANT: this permission is mandatory for trusted publishing
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build package
+        run: python -m build
+
+      - name: Check package
+        run: python -m twine check dist/*
+
+      - name: Publish to Test PyPI
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'testpypi'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          print-hash: true
+
+      - name: Publish to PyPI
+        if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'pypi')
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          print-hash: true
+
+      - name: Create deployment summary
+        run: |
+          echo "## 🚀 Package Published Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Package Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Package**: context-file-manager" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: $(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" = "release" ] || [ "${{ github.event.inputs.environment }}" = "pypi" ]; then
+            echo "- **Repository**: PyPI (Production)" >> $GITHUB_STEP_SUMMARY
+            echo "- **URL**: https://pypi.org/project/context-file-manager/" >> $GITHUB_STEP_SUMMARY
+            echo "- **Install**: \`pip install context-file-manager\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Repository**: Test PyPI" >> $GITHUB_STEP_SUMMARY
+            echo "- **URL**: https://test.pypi.org/project/context-file-manager/" >> $GITHUB_STEP_SUMMARY
+            echo "- **Install**: \`pip install -i https://test.pypi.org/simple/ context-file-manager\`" >> $GITHUB_STEP_SUMMARY
+          fi
