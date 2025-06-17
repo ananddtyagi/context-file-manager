@@ -1,0 +1,2 @@
+# No runtime dependencies required
+# This project uses only Python standard library modules

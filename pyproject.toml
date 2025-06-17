@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "context-file-manager"
+version = "0.1.1"
+authors = [
+  { name="Anand Tyagi", email="anand.deep.tyagi@gmail.com" },
+]
+description = "A CLI tool for managing shared context files across projects"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Filesystems",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
+keywords = ["file management", "context files", "cli tool", "project management"]
+
+[project.urls]
+"Homepage" = "https://github.com/ananddtyagi/context-file-manager"
+"Bug Tracker" = "https://github.com/ananddtyagi/context-file-manager/issues"
+"Source" = "https://github.com/ananddtyagi/context-file-manager"
+
+[project.scripts]
+cfm = "cfm_package.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cfm_package*"]

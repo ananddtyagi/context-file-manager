@@ -1,0 +1,155 @@
+name: Version and Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  version-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version
+        id: current_version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Determine version bump type
+        id: version_type
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "type=${{ github.event.inputs.version_type }}" >> $GITHUB_OUTPUT
+          else
+            # Check commit message for conventional commits
+            commit_msg="${{ github.event.head_commit.message }}"
+            if echo "$commit_msg" | grep -qE "^feat(\(.+\))?!:|^fix(\(.+\))?!:|BREAKING CHANGE"; then
+              echo "type=major" >> $GITHUB_OUTPUT
+            elif echo "$commit_msg" | grep -qE "^feat(\(.+\))?:"; then
+              echo "type=minor" >> $GITHUB_OUTPUT
+            else
+              echo "type=patch" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Bump version
+        id: version
+        run: |
+          npm version ${{ steps.version_type.outputs.type }} --no-git-tag-version
+          new_version=$(node -p "require('./package.json').version")
+          echo "new_version=$new_version" >> $GITHUB_OUTPUT
+          echo "tag=v$new_version" >> $GITHUB_OUTPUT
+
+      - name: Create changelog entry
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            cat > CHANGELOG.md << 'EOF'
+          # Changelog
+          
+          All notable changes to this project will be documented in this file.
+          
+          EOF
+          fi
+          
+          # Get commits since last tag or all commits if no tags
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$last_tag" ]; then
+            commits=$(git log --oneline --no-merges)
+          else
+            commits=$(git log $last_tag..HEAD --oneline --no-merges)
+          fi
+          
+          # Create temp file with new entry
+          cat > temp_changelog.md << EOF
+          # Changelog
+          
+          All notable changes to this project will be documented in this file.
+          
+          ## [${{ steps.version.outputs.new_version }}] - $(date +%Y-%m-%d)
+          
+          ### Changes
+          $commits
+          
+          EOF
+          
+          # Append rest of changelog if it exists
+          if [ -f CHANGELOG.md ]; then
+            tail -n +5 CHANGELOG.md >> temp_changelog.md
+          fi
+          
+          mv temp_changelog.md CHANGELOG.md
+
+      - name: Commit and tag
+        run: |
+          git add package.json package-lock.json CHANGELOG.md
+          git commit -m "chore: release v${{ steps.version.outputs.new_version }}"
+          git tag -a ${{ steps.version.outputs.tag }} -m "Release ${{ steps.version.outputs.tag }}"
+
+      - name: Push changes
+        run: |
+          git push origin HEAD:${{ github.ref_name }}
+          git push origin ${{ steps.version.outputs.tag }}
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          release_name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## Changes in v${{ steps.version.outputs.new_version }}
+            
+            See [CHANGELOG.md](./CHANGELOG.md) for detailed changes.
+            
+            ### Artifacts
+            - `voice-widget.js` - Production build
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        if: hashFiles('dist/voice-widget.js') != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: dist/voice-widget.js
+          asset_name: voice-widget.js
+          asset_content_type: application/javascript 
