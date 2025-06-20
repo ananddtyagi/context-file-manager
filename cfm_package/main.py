@@ -72,12 +72,72 @@ class ContextFileManager:
             "original_path": str(source_path),
             "added_date": datetime.now().isoformat(),
             "size": source_path.stat().st_size,
-            "tags": tags or []
+            "tags": tags or [],
+            "type": "file"
         }
         self._save_spec(spec)
         
         print(f"✓ Added: {dest_filename}")
         return dest_filename
+    
+    def add_folder(self, folder_path: str, description: str, tags: Optional[List[str]] = None):
+        """Add a folder and all its contents to the repository."""
+        source_path = Path(folder_path).expanduser().resolve()
+        
+        if not source_path.exists():
+            raise FileNotFoundError(f"Folder not found: {folder_path}")
+        
+        if not source_path.is_dir():
+            raise ValueError(f"Path is not a directory: {folder_path}")
+        
+        # Generate unique folder name
+        folder_name = source_path.name
+        dest_folder_path = self.repo_path / folder_name
+        
+        # Handle duplicate folder names
+        counter = 1
+        while dest_folder_path.exists():
+            folder_name = f"{source_path.name}_{counter}"
+            dest_folder_path = self.repo_path / folder_name
+            counter += 1
+        
+        # Create the folder
+        dest_folder_path.mkdir(parents=True, exist_ok=True)
+        
+        # Copy all contents recursively
+        files_added = []
+        total_size = 0
+        
+        for item in source_path.rglob("*"):
+            if item.is_file():
+                # Calculate relative path
+                rel_path = item.relative_to(source_path)
+                dest_item_path = dest_folder_path / rel_path
+                
+                # Create parent directories if needed
+                dest_item_path.parent.mkdir(parents=True, exist_ok=True)
+                
+                # Copy the file
+                shutil.copy2(item, dest_item_path)
+                files_added.append(str(rel_path))
+                total_size += item.stat().st_size
+        
+        # Update spec
+        spec = self._load_spec()
+        spec[folder_name] = {
+            "description": description,
+            "original_path": str(source_path),
+            "added_date": datetime.now().isoformat(),
+            "size": total_size,
+            "tags": tags or [],
+            "type": "folder",
+            "file_count": len(files_added),
+            "files": files_added
+        }
+        self._save_spec(spec)
+        
+        print(f"✓ Added folder: {folder_name} ({len(files_added)} files)")
+        return folder_name
     
     def list_files(self, tag: Optional[str] = None, format: str = "table"):
         """List all files in the repository."""
@@ -109,15 +169,23 @@ class ContextFileManager:
         max_filename = max(max_filename, 8)  # Minimum width
         
         # Print header
-        print(f"\n{'Filename':<{max_filename}} | {'Description':<50} | {'Tags':<20} | Size")
-        print("-" * (max_filename + 50 + 20 + 15))
+        print(f"\n{'Name':<{max_filename}} | {'Type':<6} | {'Description':<40} | {'Tags':<20} | Size")
+        print("-" * (max_filename + 6 + 40 + 20 + 20))
         
-        # Print files
+        # Print files and folders
         for filename, info in spec.items():
-            desc = info['description'][:47] + "..." if len(info['description']) > 50 else info['description']
+            item_type = info.get('type', 'file')
+            if item_type == 'folder':
+                type_str = "folder"
+                size_str = f"{self._format_size(info.get('size', 0))} ({info.get('file_count', 0)} files)"
+            else:
+                type_str = "file"
+                size_str = self._format_size(info.get('size', 0))
+            
+            desc = info['description'][:37] + "..." if len(info['description']) > 40 else info['description']
             tags = ", ".join(info.get('tags', []))[:17] + "..." if len(", ".join(info.get('tags', []))) > 20 else ", ".join(info.get('tags', []))
-            size = self._format_size(info.get('size', 0))
-            print(f"{filename:<{max_filename}} | {desc:<50} | {tags:<20} | {size}")
+            
+            print(f"{filename:<{max_filename}} | {type_str:<6} | {desc:<40} | {tags:<20} | {size_str}")
     
     def _format_size(self, size: int) -> str:
         """Format file size in human-readable format."""
@@ -143,6 +211,36 @@ class ContextFileManager:
         print(f"✓ Copied {filename} to {dest_path}")
         return str(dest_path)
     
+    def get_folder(self, folder_name: str, destination: Optional[str] = None):
+        """Copy a folder from the repository to a destination."""
+        source_path = self.repo_path / folder_name
+        
+        if not source_path.exists():
+            raise FileNotFoundError(f"Folder not found in repository: {folder_name}")
+        
+        if not source_path.is_dir():
+            raise ValueError(f"Not a folder: {folder_name}")
+        
+        if destination:
+            dest_base = Path(destination).expanduser().resolve()
+        else:
+            dest_base = Path.cwd()
+        
+        dest_path = dest_base / folder_name
+        
+        # Check if destination already exists
+        if dest_path.exists():
+            raise FileExistsError(f"Destination already exists: {dest_path}")
+        
+        # Copy the entire folder
+        shutil.copytree(source_path, dest_path)
+        
+        # Count files
+        file_count = sum(1 for _ in dest_path.rglob("*") if _.is_file())
+        
+        print(f"✓ Copied folder {folder_name} to {dest_path} ({file_count} files)")
+        return str(dest_path)
+    
     def remove_file(self, filename: str):
         """Remove a file from the repository."""
         file_path = self.repo_path / filename
@@ -160,6 +258,27 @@ class ContextFileManager:
             self._save_spec(spec)
         
         print(f"✓ Removed: {filename}")
+    
+    def remove_folder(self, folder_name: str):
+        """Remove a folder from the repository."""
+        folder_path = self.repo_path / folder_name
+        
+        if not folder_path.exists():
+            raise FileNotFoundError(f"Folder not found in repository: {folder_name}")
+        
+        if not folder_path.is_dir():
+            raise ValueError(f"Not a folder: {folder_name}")
+        
+        # Remove from filesystem
+        shutil.rmtree(folder_path)
+        
+        # Update spec
+        spec = self._load_spec()
+        if folder_name in spec:
+            del spec[folder_name]
+            self._save_spec(spec)
+        
+        print(f"✓ Removed folder: {folder_name}")
     
     def search_files(self, query: str):
         """Search for files by description or filename."""
@@ -201,6 +320,33 @@ class ContextFileManager:
         spec[filename]['tags'] = list(current_tags)
         self._save_spec(spec)
         print(f"✓ Added tags to {filename}: {', '.join(tags)}")
+    
+    def list_folder_contents(self, folder_name: str):
+        """List the contents of a folder in the repository."""
+        spec = self._load_spec()
+        
+        if folder_name not in spec:
+            raise FileNotFoundError(f"Folder not found in repository: {folder_name}")
+        
+        folder_info = spec[folder_name]
+        if folder_info.get('type') != 'folder':
+            raise ValueError(f"Not a folder: {folder_name}")
+        
+        print(f"\nContents of folder: {folder_name}")
+        print(f"Description: {folder_info['description']}")
+        print(f"Total size: {self._format_size(folder_info.get('size', 0))}")
+        print(f"File count: {folder_info.get('file_count', 0)}")
+        
+        if folder_info.get('tags'):
+            print(f"Tags: {', '.join(folder_info['tags'])}")
+        
+        files = folder_info.get('files', [])
+        if files:
+            print(f"\nFiles:")
+            for file_path in sorted(files):
+                print(f"  - {file_path}")
+        else:
+            print("\nNo files in folder.")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -214,17 +360,29 @@ Examples:
   # Add a file with tags
   cfm add config.json "Database configuration" --tags database config
   
-  # List all files
+  # Add a folder with all its contents
+  cfm add-folder ./src "Source code directory" --tags code javascript
+  
+  # List all files and folders
   cfm list
   
-  # Search for files
+  # List contents of a specific folder
+  cfm list-folder src
+  
+  # Search for files and folders
   cfm search "config"
   
   # Get a file from the repository
   cfm get README.md ./my-project/
   
+  # Get a folder from the repository
+  cfm get-folder src ./my-project/
+  
   # Remove a file
   cfm remove old-config.json
+  
+  # Remove a folder
+  cfm remove-folder old-src
         """
     )
     
@@ -238,8 +396,14 @@ Examples:
     add_parser.add_argument('description', help='Description of the file')
     add_parser.add_argument('--tags', '-t', nargs='+', help='Tags for the file')
     
+    # Add folder command
+    add_folder_parser = subparsers.add_parser('add-folder', help='Add a folder to the repository')
+    add_folder_parser.add_argument('folder', help='Path to the folder to add')
+    add_folder_parser.add_argument('description', help='Description of the folder')
+    add_folder_parser.add_argument('--tags', '-t', nargs='+', help='Tags for the folder')
+    
     # List command
-    list_parser = subparsers.add_parser('list', help='List all files')
+    list_parser = subparsers.add_parser('list', help='List all files and folders')
     list_parser.add_argument('--tag', '-t', help='Filter by tag')
     list_parser.add_argument('--format', '-f', choices=['table', 'json', 'simple'], 
                            default='table', help='Output format')
@@ -249,12 +413,21 @@ Examples:
     get_parser.add_argument('filename', help='Name of the file in the repository')
     get_parser.add_argument('destination', nargs='?', help='Destination path (optional)')
     
+    # Get folder command
+    get_folder_parser = subparsers.add_parser('get-folder', help='Get a folder from the repository')
+    get_folder_parser.add_argument('folder', help='Name of the folder in the repository')
+    get_folder_parser.add_argument('destination', nargs='?', help='Destination path (optional)')
+    
     # Remove command
     remove_parser = subparsers.add_parser('remove', help='Remove a file from the repository')
     remove_parser.add_argument('filename', help='Name of the file to remove')
     
+    # Remove folder command
+    remove_folder_parser = subparsers.add_parser('remove-folder', help='Remove a folder from the repository')
+    remove_folder_parser.add_argument('folder', help='Name of the folder to remove')
+    
     # Search command
-    search_parser = subparsers.add_parser('search', help='Search for files')
+    search_parser = subparsers.add_parser('search', help='Search for files and folders')
     search_parser.add_argument('query', help='Search query')
     
     # Update command
@@ -263,9 +436,13 @@ Examples:
     update_parser.add_argument('description', help='New description')
     
     # Tag command
-    tag_parser = subparsers.add_parser('tag', help='Add tags to a file')
-    tag_parser.add_argument('filename', help='Name of the file')
+    tag_parser = subparsers.add_parser('tag', help='Add tags to a file or folder')
+    tag_parser.add_argument('filename', help='Name of the file or folder')
     tag_parser.add_argument('tags', nargs='+', help='Tags to add')
+    
+    # List folder contents command
+    list_folder_parser = subparsers.add_parser('list-folder', help='List contents of a folder')
+    list_folder_parser.add_argument('folder', help='Name of the folder to list')
     
     args = parser.parse_args()
     
@@ -278,18 +455,26 @@ Examples:
         
         if args.command == 'add':
             manager.add_file(args.file, args.description, args.tags)
+        elif args.command == 'add-folder':
+            manager.add_folder(args.folder, args.description, args.tags)
         elif args.command == 'list':
             manager.list_files(args.tag, args.format)
         elif args.command == 'get':
             manager.get_file(args.filename, args.destination)
+        elif args.command == 'get-folder':
+            manager.get_folder(args.folder, args.destination)
         elif args.command == 'remove':
             manager.remove_file(args.filename)
+        elif args.command == 'remove-folder':
+            manager.remove_folder(args.folder)
         elif args.command == 'search':
             manager.search_files(args.query)
         elif args.command == 'update':
             manager.update_description(args.filename, args.description)
         elif args.command == 'tag':
             manager.add_tags(args.filename, args.tags)
+        elif args.command == 'list-folder':
+            manager.list_folder_contents(args.folder)
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
