@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2025-06-20
+
+### Changes
+a473cf9 feat: add folder support
+
 ## [0.1.1] - 2025-06-17
 
 ### Changes

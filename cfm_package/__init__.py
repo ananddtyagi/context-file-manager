@@ -2,7 +2,7 @@
 Context File Manager - A CLI tool for managing shared context files across projects
 """
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 __author__ = "Anand Tyagi"
 __email__ = "anand.deep.tyagi@gmail.com"
 

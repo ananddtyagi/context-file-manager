@@ -11,7 +11,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="context-file-manager",
-    version="0.1.1",
+    version="0.2.0",
     author="Anand Tyagi",
     author_email="anand.deep.tyagi@gmail.com",
     description="A CLI tool for managing shared context files across projects",
