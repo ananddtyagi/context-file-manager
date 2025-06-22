@@ -164,15 +164,20 @@ class ContextFileManager:
     
     def _print_table(self, spec: Dict):
         """Print files in a formatted table."""
+        print(self._format_table_output(spec))
+    
+    def _format_table_output(self, spec: Dict) -> str:
+        """Format files in a table and return as string."""
         # Calculate column widths
         max_filename = max(len(f) for f in spec.keys()) if spec else 8
         max_filename = max(max_filename, 8)  # Minimum width
         
-        # Print header
-        print(f"\n{'Name':<{max_filename}} | {'Type':<6} | {'Description':<40} | {'Tags':<20} | Size")
-        print("-" * (max_filename + 6 + 40 + 20 + 20))
+        lines = []
+        # Header
+        lines.append(f"{'Name':<{max_filename}} | {'Type':<6} | {'Description':<40} | {'Tags':<20} | Size")
+        lines.append("-" * (max_filename + 6 + 40 + 20 + 20))
         
-        # Print files and folders
+        # Files and folders
         for filename, info in spec.items():
             item_type = info.get('type', 'file')
             if item_type == 'folder':
@@ -185,7 +190,9 @@ class ContextFileManager:
             desc = info['description'][:37] + "..." if len(info['description']) > 40 else info['description']
             tags = ", ".join(info.get('tags', []))[:17] + "..." if len(", ".join(info.get('tags', []))) > 20 else ", ".join(info.get('tags', []))
             
-            print(f"{filename:<{max_filename}} | {type_str:<6} | {desc:<40} | {tags:<20} | {size_str}")
+            lines.append(f"{filename:<{max_filename}} | {type_str:<6} | {desc:<40} | {tags:<20} | {size_str}")
+        
+        return "\n".join(lines)
     
     def _format_size(self, size: int) -> str:
         """Format file size in human-readable format."""

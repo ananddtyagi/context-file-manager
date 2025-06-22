@@ -1,0 +1,7 @@
+{
+  "mcpServers": {
+    "context-file-manager": {
+      "command": "cfm-mcp"
+    }
+  }
+}

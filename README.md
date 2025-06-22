@@ -16,7 +16,11 @@ A command-line tool for managing shared context files across projects. CFM provi
 ### From PyPI (Recommended)
 
 ```bash
+# Basic installation
 pip install context-file-manager
+
+# With MCP server support (for AI assistants like Claude)
+pip install context-file-manager[mcp]
 ```
 
 ### From Source
@@ -195,6 +199,59 @@ cfm list --tag template
 
 # Create new project from template
 cfm get-folder react-template ./my-new-react-app
+```
+
+## MCP Server for AI Assistants
+
+CFM includes an optional Model Context Protocol (MCP) server that allows AI assistants like Claude to manage your context files.
+
+### Installation
+
+```bash
+pip install context-file-manager[mcp]
+```
+
+### Usage with Claude Desktop
+
+Add to your Claude Desktop configuration:
+
+```json
+{
+  "mcpServers": {
+    "context-file-manager": {
+      "command": "cfm-mcp"
+    }
+  }
+}
+```
+
+### Available MCP Tools
+
+Once connected, you can use natural language with your AI assistant:
+
+- **"Store this config file in my context repository"** - Add files with descriptions
+- **"Find all files tagged with 'docker'"** - Search and filter files
+- **"Retrieve the nginx config for my new project"** - Get files for current work
+- **"Add this entire components folder to my repository"** - Store complete directories
+- **"List all my database configurations"** - Browse repository contents
+
+### MCP Tool Features
+
+- **File Management**: Add, get, remove, update files and folders
+- **Search & Discovery**: List, search, and filter by tags
+- **Metadata Management**: Update descriptions and add tags
+- **Repository Control**: Custom repository paths supported
+
+## PyPI Upload
+
+To upload a new version to PyPI:
+
+```bash
+# Test upload
+./upload_to_pypi.sh test
+
+# Production upload  
+./upload_to_pypi.sh prod
 ```
 
 ## License
