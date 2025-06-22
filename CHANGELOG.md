@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2025-06-22
+
+### Changes
+01f3c00 add mcp server
+
 ## [0.2.0] - 2025-06-20
 
 ### Changes
