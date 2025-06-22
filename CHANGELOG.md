@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2025-06-22
+
+### Changes
+a86d83e fix: add mcp setup command in help
+
 ## [0.5.0] - 2025-06-22
 
 ### Changes
