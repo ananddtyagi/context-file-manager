@@ -101,6 +101,9 @@ Examples:
   
   # Remove a folder
   cfm remove-folder old-src
+  
+  # Generate Claude Desktop MCP configuration
+  cfm setup-mcp
         """
     )
     
@@ -164,7 +167,7 @@ Examples:
     
     # Setup MCP command
     setup_mcp_parser = subparsers.add_parser('setup-mcp', help='Generate Claude Desktop MCP configuration')
-    
+
     args = parser.parse_args()
     
     if not args.command:
