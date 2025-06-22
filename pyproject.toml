@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "context-file-manager"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
   { name="Anand Tyagi", email="anand.deep.tyagi@gmail.com" },
 ]
@@ -28,6 +28,12 @@ classifiers = [
 ]
 keywords = ["file management", "context files", "cli tool", "project management"]
 
+dependencies = []
+
+[project.optional-dependencies]
+mcp = ["mcp>=1.0.0"]
+all = ["mcp>=1.0.0"]
+
 [project.urls]
 "Homepage" = "https://github.com/ananddtyagi/context-file-manager"
 "Bug Tracker" = "https://github.com/ananddtyagi/context-file-manager/issues"
@@ -35,6 +41,7 @@ keywords = ["file management", "context files", "cli tool", "project management"
 
 [project.scripts]
 cfm = "cfm_package.main:main"
+cfm-mcp = "cfm_package.cfm_mcp_server:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
