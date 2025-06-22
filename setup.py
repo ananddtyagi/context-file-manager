@@ -11,7 +11,7 @@ long_description = (this_directory / "README.md").read_text(encoding="utf-8")
 
 setup(
     name="context-file-manager",
-    version="0.2.0",
+    version="0.3.0",
     author="Anand Tyagi",
     author_email="anand.deep.tyagi@gmail.com",
     description="A CLI tool for managing shared context files across projects",
@@ -35,9 +35,15 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.7",
+    install_requires=[],
+    extras_require={
+        "mcp": ["mcp>=1.0.0"],
+        "all": ["mcp>=1.0.0"],
+    },
     entry_points={
         "console_scripts": [
             "cfm=cfm_package.main:main",
+            "cfm-mcp=cfm_package.cfm_mcp_server:main",
         ],
     },
     keywords="file management, context files, cli tool, project management",

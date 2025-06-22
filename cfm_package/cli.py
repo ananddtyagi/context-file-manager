@@ -5,7 +5,65 @@ CLI interface for Context File Manager
 
 import sys
 import argparse
+import json
+import subprocess
+import shutil
 from .main import ContextFileManager
+
+
+def setup_mcp_config():
+    """Generate Claude Desktop MCP configuration for context-file-manager"""
+    
+    # Check if MCP dependencies are available
+    try:
+        import mcp
+    except ImportError:
+        print("❌ MCP dependencies not found!")
+        print("📦 Please install with MCP support:")
+        print("   pip install 'context-file-manager[mcp]'")
+        return
+    
+    # Find Python executable
+    python_path = shutil.which('python')
+    if not python_path:
+        python_path = shutil.which('python3')
+    
+    if not python_path:
+        print("❌ Python executable not found in PATH")
+        return
+    
+    # Test if the MCP server module is available
+    try:
+        result = subprocess.run([
+            python_path, '-c', 'import cfm_package.cfm_mcp_server'
+        ], capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            print("❌ cfm_package.cfm_mcp_server module not found")
+            print("📦 Please install with MCP support:")
+            print("   pip install 'context-file-manager[mcp]'")
+            return
+    except Exception as e:
+        print(f"❌ Error checking MCP server: {e}")
+        return
+    
+    # Generate configuration
+    config = {
+        "context-file-manager": {
+            "command": python_path,
+            "args": ["-m", "cfm_package.cfm_mcp_server"]
+        }
+    }
+    
+    print("✅ MCP server configuration ready!")
+    print("\n📋 Add this to your Claude Desktop config:")
+    print("=" * 50)
+    print(json.dumps(config, indent=2))
+    print("=" * 50)
+    print("\n📍 Config file locations:")
+    print("   macOS: ~/Library/Application Support/Claude/claude_desktop_config.json")
+    print("   Windows: %APPDATA%\\Claude\\claude_desktop_config.json")
+    print("   Linux: ~/.config/claude/claude_desktop_config.json")
 
 
 def main():
@@ -104,6 +162,9 @@ Examples:
     list_folder_parser = subparsers.add_parser('list-folder', help='List contents of a folder')
     list_folder_parser.add_argument('folder', help='Name of the folder to list')
     
+    # Setup MCP command
+    setup_mcp_parser = subparsers.add_parser('setup-mcp', help='Generate Claude Desktop MCP configuration')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -135,6 +196,8 @@ Examples:
             manager.add_tags(args.filename, args.tags)
         elif args.command == 'list-folder':
             manager.list_folder_contents(args.folder)
+        elif args.command == 'setup-mcp':
+            setup_mcp_config()
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
