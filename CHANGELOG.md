@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2025-06-22
+
+### Changes
+3a8219b chore: update setup.py with MCP extras and entry points
+14a485e feat: add setup-mcp command to generate Claude Desktop config
+
 ## [0.3.0] - 2025-06-22
 
 ### Changes
